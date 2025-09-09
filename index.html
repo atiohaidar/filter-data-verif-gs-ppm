@@ -1,0 +1,196 @@
+<!doctype html>
+<html lang="id">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Dashboard Filter Publikasi Dosen (CSV)</title>
+    <link rel="stylesheet" href="styles.css" />
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+    <!-- PapaParse for CSV parsing -->
+    <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+  </head>
+  <body>
+    <header class="app-header">
+      <h1>Dashboard Verifikasi Publikasi Dosen</h1>
+      <p class="subtitle">Langkah 1: Unggah CSV • Langkah 2: Pilih sumber nama • Langkah 3: Cari & pilih dosen • Langkah 4: Verifikasi data</p>
+    </header>
+
+    <main class="container">
+      <!-- Drop Zone -->
+      <section class="card" id="dropZone">
+        <div class="drop-inner" id="dropInner">
+          <div>
+    <div class="drop-title">Tarik & Lepas CSV di sini</div>
+    <div class="drop-subtitle">atau klik untuk memilih file. File tidak diunggah ke server—semua diproses di browser Anda.</div>
+          </div>
+          <input type="file" id="fileInput" accept=".csv,text/csv" hidden />
+        </div>
+        <div id="fileMeta" class="file-meta" hidden></div>
+      </section>
+
+      <!-- Filters (hidden until CSV loaded) -->
+      <section class="card hidden" id="filtersSection">
+        <h2 class="card-title">Filter</h2>
+        <div class="control-row">
+          <label class="control-label">Sumber Nama Dosen</label>
+          <div class="radio-group" id="sourceChecks">
+            <label><input type="checkbox" id="sourceInternalChk" checked /> Gunakan Penulis Internal</label>
+            <label><input type="checkbox" id="sourceAllChk" checked /> Gunakan Penulis (semua)</label>
+          </div>
+          <small class="hint">Catatan: Entri yang hanya angka pada kolom penulis akan diabaikan.</small>
+        </div>
+
+        <div class="control-row">
+          <label class="control-label" for="judulInput">Judul Artikel</label>
+          <input id="judulInput" type="text" placeholder="Cari judul..." />
+        </div>
+
+        <div class="control-row">
+          <label class="control-label" for="tipeSelect">Tipe Publikasi</label>
+          <select id="tipeSelect" class="fullwidth">
+            <option value="">Semua</option>
+          </select>
+        </div>
+
+        <div class="control-row">
+          <label class="control-label" for="dosenInput">Dosen</label>
+          <input id="dosenInput" type="text" list="dosenDatalist" placeholder="Ketik nama dosen... (bisa lebih dari satu, pisahkan dengan koma)" />
+          <datalist id="dosenDatalist"></datalist>
+          <small class="hint">Pilih dari saran lalu tambahkan koma untuk memasukkan nama berikutnya.</small>
+        </div>
+
+        <div class="control-row">
+          <label class="control-label">Status Verifikasi</label>
+          <div class="radio-group" id="verificationFilters">
+            <label><input type="radio" name="verificationStatus" value="all" checked /> Semua Data</label>
+            <label><input type="radio" name="verificationStatus" value="unverified" /> Belum Diverifikasi</label>
+            <label><input type="radio" name="verificationStatus" value="verified" /> Sudah Diverifikasi</label>
+            <label><input type="radio" name="verificationStatus" value="issues" /> Ada Potensi Masalah</label>
+          </div>
+        </div>
+
+        <div class="buttons">
+          <label class="auto-apply"><input type="checkbox" id="autoApplyChk" checked /> Terapkan otomatis</label>
+          <button id="applyFilterBtn" class="btn primary" disabled>Terapkan Filter</button>
+          <button id="resetFilterBtn" class="btn" disabled>Reset</button>
+          <button id="exportBtn" class="btn success" disabled>Export CSV (hasil filter)</button>
+          <button id="exportVerificationBtn" class="btn info" disabled>Export Status Verifikasi</button>
+          <button id="importVerificationBtn" class="btn info" disabled>Import Status Verifikasi</button>
+          <input type="file" id="verificationFileInput" accept=".csv,text/csv" hidden />
+        </div>
+      </section>
+
+      <!-- Table (hidden until CSV loaded) -->
+      <section class="card hidden" id="tableSection">
+        <h2 class="card-title">Data Artikel</h2>
+        <div class="table-controls">
+          <label>Baris per halaman
+            <select id="pageSizeSelect">
+              <option value="5" selected>5</option>
+              <option value="10">10</option>
+              <option value="20">20</option>
+              <option value="50">50</option>
+              <option value="100">100</option>
+            </select>
+          </label>
+          <div class="spacer"></div>
+          <div class="copy-actions">
+            <button id="markAllVerifiedBtn" class="btn success">Tandai Halaman Ini Sudah Diverifikasi</button>
+            <button id="copyPageBtn" class="btn">Salin (halaman ini)</button>
+            <button id="copyAllBtn" class="btn">Salin (semua hasil)</button>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table id="dataTable">
+            <thead>
+              <tr>
+                <th>Verifikasi</th>
+                <th>Judul Artikel</th>
+                <th>Penulis Internal</th>
+                <th>Tipe Publikasi</th>
+                <th>Nama Jurnal/Conference</th>
+                <th>Tautan</th>
+                <th>Potensi Masalah</th>
+                <th>Validitas Artikel</th>
+                <th>ID</th>
+                <th>Penulis</th>
+                <th>Tahun Publikasi</th>
+              </tr>
+            </thead>
+            <tbody id="tableBody"></tbody>
+          </table>
+        </div>
+  <div id="pagination" class="pagination"></div>
+      </section>
+
+      <!-- Summary (hidden until CSV loaded) -->
+      <section class="card hidden" id="summarySection">
+        <h2 class="card-title">Ringkasan Filter</h2>
+        <div id="summaryCounts" class="hint">-</div>
+        <div id="filterSummary" class="chips"></div>
+      </section>
+
+      <!-- Statistics (hidden until CSV loaded) -->
+      <section class="card hidden" id="statsSection">
+        <h2 class="card-title">Statistik Verifikasi</h2>
+        <div class="charts">
+          <div class="chart-item">
+            <h3 class="chart-title">Status Verifikasi</h3>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr><th>Status</th><th>Jumlah</th></tr>
+                </thead>
+                <tbody id="verificationStatsBody"></tbody>
+              </table>
+            </div>
+            <div class="buttons" style="margin-top:8px"><button id="copyVerificationStatsBtn" class="btn">Salin tabel</button></div>
+          </div>
+          <div class="chart-item">
+            <h3 class="chart-title">Validitas Artikel</h3>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr><th>Kategori</th><th>Jumlah</th></tr>
+                </thead>
+                <tbody id="validitasStatsBody"></tbody>
+              </table>
+            </div>
+            <div class="buttons" style="margin-top:8px"><button id="copyValidStatsBtn" class="btn">Salin tabel</button></div>
+          </div>
+          <div class="chart-item">
+            <h3 class="chart-title">Tipe Publikasi</h3>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr><th>Kategori</th><th>Jumlah</th></tr>
+                </thead>
+                <tbody id="tipeStatsBody"></tbody>
+              </table>
+            </div>
+            <div class="buttons" style="margin-top:8px"><button id="copyTipeStatsBtn" class="btn">Salin tabel</button></div>
+          </div>
+          <div class="chart-item">
+            <h3 class="chart-title">Potensi Masalah</h3>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr><th>Jenis Masalah</th><th>Jumlah</th></tr>
+                </thead>
+                <tbody id="issuesStatsBody"></tbody>
+              </table>
+            </div>
+            <div class="buttons" style="margin-top:8px"><button id="copyIssuesStatsBtn" class="btn">Salin tabel</button></div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="app-footer">
+      <span>Thx Github Copilot</span>
+    </footer>
+
+    <script src="app.js"></script>
+  </body>
+  </html>
