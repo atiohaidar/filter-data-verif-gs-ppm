@@ -1084,6 +1084,43 @@
   // Initialize empty state
   enableControls(false);
 
-  
+  // Auto-load from localStorage if available
+  if (typeof window !== 'undefined' && window.localStorage) {
+    try {
+      const publikasiData = localStorage.getItem('publikasiData');
+      if (publikasiData) {
+        // Map ke format kolom yang diharapkan
+        const arr = JSON.parse(publikasiData);
+        if (Array.isArray(arr) && arr.length > 0) {
+          // Kolom yang diharapkan: ID, Judul Artikel, Penulis, Penulis Internal, Tipe Publikasi, Nama Jurnal/Conference, Tahun Publikasi, Tautan Publikasi, Validitas Artikel
+          rawData = arr.map(pub => ({
+            'ID': pub.id || '',
+            'Judul Artikel': pub.title || '',
+            'Penulis': pub.authors || '',
+            'Penulis Internal': pub.internalAuthors || '',
+            'Tipe Publikasi': pub.publicationType || '',
+            'Nama Jurnal/Conference': pub.journalName || '',
+            'Tahun Publikasi': pub.publicationYear || '',
+            'Tautan Publikasi': pub.publicationLink || '',
+            'Validitas Artikel': pub.validitasArtikel || ''
+          }));
+          filteredData = [...rawData];
+          buildUniqueDosen();
+          buildUniqueTipe();
+          filtersSection.classList.remove('hidden');
+          tableSection.classList.remove('hidden');
+          statsSection.classList.remove('hidden');
+          summarySection.classList.remove('hidden');
+          initializeSortableHeaders();
+          currentPage = 1;
+          updateAll();
+          // Hapus data dari localStorage agar tidak auto-load lagi saat refresh berikutnya
+          localStorage.removeItem('publikasiData');
+        }
+      }
+    } catch (e) {
+      console.warn('Gagal load data dari localStorage:', e);
+    }
+  }
   
 })();
