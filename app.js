@@ -43,6 +43,7 @@
   let verificationData = new Map(); // ID -> {verified: boolean, timestamp: string}
   let pageSize = 5;
   let currentPage = 1;
+  let currentSort = { column: null, direction: null }; // null, 'asc', 'desc'
 
   // CSV columns expected
   const COLS = {
@@ -83,38 +84,84 @@
       issues.push('ResearchGate');
     }
     
-    // 5. EBSCOhost
+    // 5. Garuda links
+    if (link.includes('garuda.kemdikbud.go.id')) {
+      issues.push('Garuda Kemdikbud');
+    }
+    
+    // 6. Neliti links
+    if (link.includes('neliti.com')) {
+      issues.push('Neliti');
+    }
+    
+    // 7. EBSCOhost
     if (link.includes('ebscohost')) {
       issues.push('EBSCOhost');
     }
     
-    // 6. Library links
+    // 8. Library links
     if (link.includes('/lib/') || link.includes('library') || link.includes('perpustakaan')) {
       issues.push('Link Library');
     }
     
-    // 7. IOS (book chapter indicator)
+    // 9. IOS (book chapter indicator)
     if (link.includes('ios') && (link.includes('book') || link.includes('chapter'))) {
       issues.push('IOS Book Chapter');
     }
     
-    // 8. AIP (proceedings indicator)
+    // 10. AIP (proceedings indicator)
     if (link.includes('aip.org') || (link.includes('aip') && link.includes('proceeding'))) {
       issues.push('AIP Proceedings');
     }
     
-    // 9. Download links
+    // 11. Download links
     if (link.includes('download')) {
       issues.push('Link Download');
     }
     
-    // 10. Journal name inconsistency (basic check for obvious variations)
+    // 12. Journal name inconsistency (basic check for obvious variations)
     const venue = (row[COLS.venue] || '').toString();
     if (venue.includes('IEEE') && !venue.includes('IEEE ')) {
       issues.push('Nama jurnal tidak seragam');
     }
     
     return issues;
+  }
+
+  // Sorting function
+  function sortData(column, direction) {
+    filteredData.sort((a, b) => {
+      let valueA = (a[COLS[column]] || '').toString().toLowerCase();
+      let valueB = (b[COLS[column]] || '').toString().toLowerCase();
+      
+      // Handle numeric columns
+      if (column === 'id' || column === 'tahun') {
+        valueA = parseInt(valueA) || 0;
+        valueB = parseInt(valueB) || 0;
+      }
+      
+      let comparison = 0;
+      if (typeof valueA === 'number' && typeof valueB === 'number') {
+        comparison = valueA - valueB;
+      } else {
+        comparison = valueA.localeCompare(valueB, 'id');
+      }
+      
+      return direction === 'asc' ? comparison : -comparison;
+    });
+    
+    // Reset to first page after sorting
+    currentPage = 1;
+  }
+
+  // Update sort indicators in table headers
+  function updateSortIndicators() {
+    document.querySelectorAll('th.sortable').forEach(th => {
+      th.classList.remove('sort-asc', 'sort-desc');
+      if (currentSort.column && th.getAttribute('data-column') === currentSort.column) {
+        th.classList.add(`sort-${currentSort.direction}`);
+      }
+    });
   }
 
   // Helpers
@@ -242,9 +289,14 @@
   }
 
   function updateAll() {
+    // Apply current sort if any
+    if (currentSort.column && currentSort.direction) {
+      sortData(currentSort.column, currentSort.direction);
+    }
     renderTable();
     renderCharts();
     renderSummary();
+    updateSortIndicators();
     enableControls(true);
   }
 
@@ -700,6 +752,9 @@
         statsSection.classList.remove('hidden');
         summarySection.classList.remove('hidden');
 
+        // Initialize sortable headers
+        initializeSortableHeaders();
+
         currentPage = 1;
         updateAll();
       })
@@ -739,6 +794,47 @@
         });
     }
   });
+
+  // Add sorting event listeners
+  function initializeSortableHeaders() {
+    document.querySelectorAll('th.sortable').forEach(th => {
+      th.addEventListener('click', () => {
+        const column = th.getAttribute('data-column');
+        
+        // Determine new sort direction
+        let newDirection = 'asc';
+        if (currentSort.column === column) {
+          if (currentSort.direction === 'asc') {
+            newDirection = 'desc';
+          } else if (currentSort.direction === 'desc') {
+            newDirection = null; // Remove sort
+          } else {
+            newDirection = 'asc';
+          }
+        }
+        
+        // Update current sort
+        if (newDirection === null) {
+          currentSort.column = null;
+          currentSort.direction = null;
+          // Reset to original order
+          filteredData = [...filteredData].sort((a, b) => {
+            const idA = parseInt(a[COLS.id]) || 0;
+            const idB = parseInt(b[COLS.id]) || 0;
+            return idA - idB;
+          });
+        } else {
+          currentSort.column = column;
+          currentSort.direction = newDirection;
+          sortData(column, newDirection);
+        }
+        
+        currentPage = 1;
+        renderTable();
+        updateSortIndicators();
+      });
+    });
+  }
   // Source checkboxes
   ;[sourceInternalChk, sourceAllChk].forEach((c) => c?.addEventListener('change', () => {
     buildUniqueDosen();

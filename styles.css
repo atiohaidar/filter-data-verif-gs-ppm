@@ -106,6 +106,45 @@ input[type="text"]:focus, select:focus { border-color: var(--primary); box-shado
 .table-wrap { overflow: auto; border: 1px solid var(--border); border-radius: 10px; }
 table { width: 100%; border-collapse: collapse; }
 thead th { position: sticky; top: 0; background: #f3f4f6; border-bottom: 1px solid var(--border); padding: 10px; text-align: left; font-weight: 700; color: var(--text); }
+
+/* Sortable table headers */
+th.sortable { 
+  cursor: pointer; 
+  user-select: none;
+  transition: background-color 0.2s ease;
+  position: relative;
+}
+th.sortable:hover { 
+  background-color: #e5e7eb; 
+}
+th.sortable:active {
+  background-color: #d1d5db;
+}
+
+.sort-indicator {
+  display: inline-block;
+  margin-left: 6px;
+  font-size: 10px;
+  opacity: 0.5;
+  transition: opacity 0.2s ease;
+}
+.sort-indicator:after {
+  content: "⇅";
+}
+th.sortable.sort-asc .sort-indicator {
+  opacity: 1;
+}
+th.sortable.sort-asc .sort-indicator:after {
+  content: "↑";
+  color: var(--primary);
+}
+th.sortable.sort-desc .sort-indicator {
+  opacity: 1;
+}
+th.sortable.sort-desc .sort-indicator:after {
+  content: "↓";
+  color: var(--primary);
+}
 tbody td { border-top: 1px solid #eef2f7; padding: 10px; vertical-align: top; }
 tbody tr:hover { background: #f9fafb; transition: background-color .15s ease; }
 .muted { color: var(--muted); text-align: center; }
