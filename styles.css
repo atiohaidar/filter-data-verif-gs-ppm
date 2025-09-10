@@ -198,6 +198,15 @@ tbody tr:hover { background: #f9fafb; transition: background-color .15s ease; }
 .issue-filters .clear-btn { background: #fff; color: var(--issue); border: 1px solid var(--issue); margin-left: 8px; font-size: 12px; border-radius: 999px; padding: 4px 12px; cursor: pointer; transition: background .15s, color .15s; }
 .issue-filters .clear-btn:hover { background: var(--issue); color: #fff; }
 
+/* Journal filter chips */
+.journal-filters { margin-top: 0; margin-bottom: 8px; }
+.journal-filters .chip { background: #0e7490; color: #fff; border: none; cursor: pointer; transition: box-shadow .15s, background .15s; }
+.journal-filters .chip.active, .journal-filters .chip:active { background: #155e75; box-shadow: 0 2px 8px rgba(14,116,144,0.12); }
+.journal-filters .chip .remove { margin-left: 6px; font-weight: bold; cursor: pointer; color: #fff; background: none; border: none; font-size: 13px; }
+.journal-filters .chip .remove:hover { color: #dbeafe; }
+.journal-filters .clear-btn { background: #fff; color: #0e7490; border: 1px solid #0e7490; margin-left: 8px; font-size: 12px; border-radius: 999px; padding: 4px 12px; cursor: pointer; transition: background .15s, color .15s; }
+.journal-filters .clear-btn:hover { background: #0e7490; color: #fff; }
+
 /* Verification styles */
 .verification-checkbox { transform: scale(1.2); margin: 4px; }
 .verification-status { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 700; text-align: center; }

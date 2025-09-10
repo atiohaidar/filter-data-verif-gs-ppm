@@ -32,6 +32,7 @@
           <div>
             <div class="drop-title">Tarik & Lepas CSV di sini</div>
             <div class="drop-subtitle">atau klik untuk memilih file. Tidak ada upload ke server—semua diproses di browser Anda.</div>
+            <div id="currentFileName" class="current-file-name" style="display:none; margin-top:8px; color:#2d6a4f; font-size:0.98em; font-weight:500;"></div>
           </div>
           <input type="file" id="fileInput" accept=".csv,text/csv" hidden />
         </div>
@@ -215,6 +216,18 @@
               </table>
             </div>
             <div class="buttons" style="margin-top:8px"><button id="copyDomainStatsBtn" class="btn">Salin tabel</button></div>
+          </div>
+          <div class="chart-item">
+            <h3 class="chart-title">Nama Jurnal/Conference</h3>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr><th>Nama Jurnal/Conference</th><th>Jumlah</th></tr>
+                </thead>
+                <tbody id="journalStatsBody"></tbody>
+              </table>
+            </div>
+            <div class="buttons" style="margin-top:8px"><button id="copyJournalStatsBtn" class="btn">Salin tabel</button></div>
           </div>
         </div>
       </section>

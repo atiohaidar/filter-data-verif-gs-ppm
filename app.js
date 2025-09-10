@@ -48,9 +48,20 @@
   let currentSort = { column: null, direction: null }; // null, 'asc', 'desc'
   let activeIssueFilters = [];
   let activeDomainFilters = [];
+  let activeJournalFilters = [];
   const domainFiltersEl = document.createElement('div');
   domainFiltersEl.id = 'activeDomainFilters';
   domainFiltersEl.className = 'chips domain-filters';
+  const journalFiltersEl = document.createElement('div');
+  journalFiltersEl.id = 'activeJournalFilters';
+  journalFiltersEl.className = 'chips journal-filters';
+
+  window.addEventListener('DOMContentLoaded', () => {
+    const journalStatsTable = document.getElementById('journalStatsBody');
+    if (journalStatsTable && journalStatsTable.parentElement && !document.getElementById('activeJournalFilters')) {
+      journalStatsTable.parentElement.parentElement.parentElement.insertAdjacentElement('beforebegin', journalFiltersEl);
+    }
+  });
 
   // CSV columns expected
   const COLS = {
@@ -301,6 +312,12 @@
         if (!activeDomainFilters.includes(domain)) return false;
       }
 
+      // Journal filter: must match ALL selected journals (AND logic)
+      if (activeJournalFilters.length > 0) {
+        const journal = (row[COLS.venue] || '').trim();
+        if (!activeJournalFilters.includes(journal)) return false;
+      }
+
       return true;
     });
 
@@ -318,6 +335,7 @@
     renderCharts();
     renderActiveIssueFilters();
     renderActiveDomainFilters();
+    renderActiveJournalFilters();
     renderSummary();
     updateSortIndicators();
     enableControls(true);
@@ -657,6 +675,44 @@
         cell.style.fontWeight = '';
       }
     });
+
+    // Journal stats
+    const journalMap = new Map();
+    filteredData.forEach(row => {
+      const journal = (row[COLS.venue] || '').trim();
+      if (journal) journalMap.set(journal, (journalMap.get(journal) || 0) + 1);
+    });
+    const journalBody = document.getElementById('journalStatsBody');
+    journalBody.innerHTML = Array.from(journalMap.entries())
+      .sort((a,b) => b[1] - a[1])
+      .map(([k,v]) => `<tr><td class="journal-stat-cell" data-journal="${escapeHtml(k)}">${escapeHtml(k)}</td><td>${v}</td></tr>`) 
+      .join('');
+    // Add click listeners for journal filter
+    journalBody.querySelectorAll('.journal-stat-cell').forEach(cell => {
+      cell.style.cursor = 'pointer';
+      cell.title = 'Klik untuk filter berdasarkan jurnal ini';
+      cell.onclick = () => {
+        const journal = cell.getAttribute('data-journal');
+        if (!activeJournalFilters.includes(journal)) {
+          activeJournalFilters.push(journal);
+        } else {
+          // Toggle off if already selected
+          activeJournalFilters = activeJournalFilters.filter(f => f !== journal);
+        }
+        renderActiveJournalFilters();
+        applyFilter();
+      };
+      // Highlight if active
+      if (activeJournalFilters.includes(cell.getAttribute('data-journal'))) {
+        cell.style.background = '#0e7490';
+        cell.style.color = '#fff';
+        cell.style.fontWeight = 'bold';
+      } else {
+        cell.style.background = '';
+        cell.style.color = '';
+        cell.style.fontWeight = '';
+      }
+    });
   }
 
   function exportCSV() {
@@ -966,6 +1022,7 @@
   const copyVerificationStatsBtn = document.getElementById('copyVerificationStatsBtn');
   const copyIssuesStatsBtn = document.getElementById('copyIssuesStatsBtn');
   const copyDomainStatsBtn = document.getElementById('copyDomainStatsBtn');
+  const copyJournalStatsBtn = document.getElementById('copyJournalStatsBtn');
 
   copyPageBtn?.addEventListener('click', () => {
     if (!filteredData.length) return;
@@ -1024,6 +1081,18 @@
       copyTextToClipboard(lines.join('\n'));
     });
   }
+  // Copy journal stats
+  if (copyJournalStatsBtn) {
+    copyJournalStatsBtn.addEventListener('click', () => {
+      const journalMap = new Map();
+      filteredData.forEach(row => {
+        const journal = (row[COLS.venue] || '').trim();
+        if (journal) journalMap.set(journal, (journalMap.get(journal) || 0) + 1);
+      });
+      const lines = ['Nama Jurnal/Conference\tJumlah', ...Array.from(journalMap.entries()).sort((a,b)=>b[1]-a[1]).map(([k,v]) => `${k}\t${v}`)];
+      copyTextToClipboard(lines.join('\n'));
+    });
+  }
 
   function renderActiveIssueFilters() {
     if (!issueFiltersEl) return;
@@ -1076,6 +1145,29 @@
         const domain = btn.getAttribute('data-domain');
         activeDomainFilters = activeDomainFilters.filter(f => f !== domain);
         renderActiveDomainFilters();
+        applyFilter();
+      };
+    });
+  }
+
+  function renderActiveJournalFilters() {
+    if (!journalFiltersEl) return;
+    if (activeJournalFilters.length === 0) {
+      journalFiltersEl.style.display = 'none';
+      journalFiltersEl.innerHTML = '';
+      return;
+    }
+    journalFiltersEl.style.display = '';
+    journalFiltersEl.innerHTML = activeJournalFilters.map(journal =>
+      `<span class="chip active">${escapeHtml(journal)} <button class="remove" title="Hapus filter" data-journal="${escapeHtml(journal)}">×</button></span>`
+    ).join('');
+
+    // Remove individual filter
+    journalFiltersEl.querySelectorAll('.remove').forEach(btn => {
+      btn.onclick = (e) => {
+        const journal = btn.getAttribute('data-journal');
+        activeJournalFilters = activeJournalFilters.filter(f => f !== journal);
+        renderActiveJournalFilters();
         applyFilter();
       };
     });
