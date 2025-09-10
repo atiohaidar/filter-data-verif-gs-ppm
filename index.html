@@ -12,17 +12,26 @@
   </head>
   <body>
     <header class="app-header">
-      <h1>Dashboard Verifikasi Publikasi Dosen</h1>
-      <p class="subtitle">Langkah 1: Unggah CSV • Langkah 2: Pilih sumber nama • Langkah 3: Cari & pilih dosen • Langkah 4: Verifikasi data</p>
+      <div class="header-top">
+        <h1>Dashboard Verifikasi Publikasi Dosen</h1>
+        <div class="light-badge">CSV lokal, diproses di browser</div>
+      </div>
+      <ol class="stepper">
+        <li class="step active"><span class="num">1</span><span class="label">Unggah CSV</span></li>
+        <li class="step"><span class="num">2</span><span class="label">Pilih sumber nama</span></li>
+        <li class="step"><span class="num">3</span><span class="label">Filter & pilih dosen</span></li>
+        <li class="step"><span class="num">4</span><span class="label">Verifikasi & simpan</span></li>
+      </ol>
     </header>
 
     <main class="container">
       <!-- Drop Zone -->
       <section class="card" id="dropZone">
         <div class="drop-inner" id="dropInner">
+          <div class="drop-icon" aria-hidden="true">📄</div>
           <div>
-    <div class="drop-title">Tarik & Lepas CSV di sini</div>
-    <div class="drop-subtitle">atau klik untuk memilih file. File tidak diunggah ke server—semua diproses di browser Anda.</div>
+            <div class="drop-title">Tarik & Lepas CSV di sini</div>
+            <div class="drop-subtitle">atau klik untuk memilih file. Tidak ada upload ke server—semua diproses di browser Anda.</div>
           </div>
           <input type="file" id="fileInput" accept=".csv,text/csv" hidden />
         </div>
@@ -31,76 +40,89 @@
 
       <!-- Filters (hidden until CSV loaded) -->
       <section class="card hidden" id="filtersSection">
-        <h2 class="card-title">Filter</h2>
-        <div class="control-row">
-          <label class="control-label">Sumber Nama Dosen</label>
-          <div class="radio-group" id="sourceChecks">
-            <label><input type="checkbox" id="sourceInternalChk" checked /> Gunakan Penulis Internal</label>
-            <label><input type="checkbox" id="sourceAllChk" checked /> Gunakan Penulis (semua)</label>
-          </div>
-          <small class="hint">Catatan: Entri yang hanya angka pada kolom penulis akan diabaikan.</small>
-        </div>
-
-        <div class="control-row">
-          <label class="control-label" for="judulInput">Judul Artikel</label>
-          <input id="judulInput" type="text" placeholder="Cari judul..." />
-        </div>
-
-        <div class="control-row">
-          <label class="control-label" for="tipeSelect">Tipe Publikasi</label>
-          <select id="tipeSelect" class="fullwidth">
-            <option value="">Semua</option>
-          </select>
-        </div>
-
-        <div class="control-row">
-          <label class="control-label" for="dosenInput">Dosen</label>
-          <input id="dosenInput" type="text" list="dosenDatalist" placeholder="Ketik nama dosen... (bisa lebih dari satu, pisahkan dengan koma)" />
-          <datalist id="dosenDatalist"></datalist>
-          <small class="hint">Pilih dari saran lalu tambahkan koma untuk memasukkan nama berikutnya.</small>
-        </div>
-
-        <div class="control-row">
-          <label class="control-label">Status Verifikasi</label>
-          <div class="radio-group" id="verificationFilters">
-            <label><input type="radio" name="verificationStatus" value="all" checked /> Semua Data</label>
-            <label><input type="radio" name="verificationStatus" value="unverified" /> Belum Diverifikasi</label>
-            <label><input type="radio" name="verificationStatus" value="verified" /> Sudah Diverifikasi</label>
-            <label><input type="radio" name="verificationStatus" value="issues" /> Ada Potensi Masalah</label>
+        <div class="filters-header">
+          <h2 class="card-title">Filter</h2>
+          <div class="filters-quick">
+            <div class="quick-item">
+              <label for="judulInput">Judul</label>
+              <input id="judulInput" type="text" placeholder="Cari judul..." />
+            </div>
+            <div class="quick-item">
+              <label for="tipeSelect">Tipe</label>
+              <select id="tipeSelect" class="fullwidth">
+                <option value="">Semua</option>
+              </select>
+            </div>
+            <div class="quick-item">
+              <label for="dosenInput">Dosen</label>
+              <input id="dosenInput" type="text" list="dosenDatalist" placeholder="Ketik nama, pisahkan dengan koma" />
+              <datalist id="dosenDatalist"></datalist>
+            </div>
+            <div class="quick-item compact">
+              <label class="switch"><input type="checkbox" id="hideVerifiedChk" /><span>Sembunyikan yang sudah diverifikasi</span></label>
+            </div>
           </div>
         </div>
 
-        <div class="buttons">
-          <label class="auto-apply"><input type="checkbox" id="autoApplyChk" checked /> Terapkan otomatis</label>
-          <button id="applyFilterBtn" class="btn primary" disabled>Terapkan Filter</button>
-          <button id="resetFilterBtn" class="btn" disabled>Reset</button>
-          <button id="exportBtn" class="btn success" disabled>Export CSV (hasil filter)</button>
-          <button id="exportVerificationBtn" class="btn info" disabled>Export Status Verifikasi</button>
-          <button id="importVerificationBtn" class="btn info" disabled>Import Status Verifikasi</button>
-          <input type="file" id="verificationFileInput" accept=".csv,text/csv" hidden />
+        <div class="filters-body">
+          <div class="control-row">
+            <label class="control-label">Sumber Nama Dosen</label>
+            <div class="radio-group" id="sourceChecks">
+              <label><input type="checkbox" id="sourceInternalChk" checked /> Penulis Internal</label>
+              <label><input type="checkbox" id="sourceAllChk" checked /> Semua Penulis</label>
+            </div>
+            <small class="hint">Catatan: Entri yang hanya angka pada kolom penulis akan diabaikan.</small>
+          </div>
+
+          <div class="control-row">
+            <label class="control-label">Status Verifikasi</label>
+            <div class="radio-group" id="verificationFilters">
+              <label><input type="radio" name="verificationStatus" value="all" checked /> Semua</label>
+              <label><input type="radio" name="verificationStatus" value="unverified" /> Belum diverifikasi</label>
+              <label><input type="radio" name="verificationStatus" value="verified" /> Sudah diverifikasi</label>
+              <label><input type="radio" name="verificationStatus" value="issues" /> Ada potensi masalah</label>
+            </div>
+          </div>
+
+          <div class="filters-actions">
+            <div class="left">
+              <label class="auto-apply"><input type="checkbox" id="autoApplyChk" checked /> Terapkan otomatis</label>
+            </div>
+            <div class="right buttons">
+              <button id="applyFilterBtn" class="btn primary" disabled>Terapkan Filter</button>
+              <button id="resetFilterBtn" class="btn" disabled>Reset</button>
+              <button id="exportBtn" class="btn success" disabled>Export CSV (hasil)</button>
+              <button id="exportVerificationBtn" class="btn info" disabled>Export Status</button>
+              <button id="importVerificationBtn" class="btn info" disabled>Import Status</button>
+              <input type="file" id="verificationFileInput" accept=".csv,text/csv" hidden />
+            </div>
+          </div>
         </div>
       </section>
 
       <!-- Table (hidden until CSV loaded) -->
       <section class="card hidden" id="tableSection">
-        <h2 class="card-title">Data Artikel</h2>
-        <div class="table-controls">
-          <label>Baris per halaman
-            <select id="pageSizeSelect">
-              <option value="5" selected>5</option>
-              <option value="10">10</option>
-              <option value="20">20</option>
-              <option value="50">50</option>
-              <option value="100">100</option>
-            </select>
-          </label>
-          <div class="spacer"></div>
-          <div class="copy-actions">
-            <button id="markAllVerifiedBtn" class="btn success">Tandai Halaman Ini Sudah Diverifikasi</button>
-            <button id="copyPageBtn" class="btn">Salin (halaman ini)</button>
-            <button id="copyAllBtn" class="btn">Salin (semua hasil)</button>
+        <div class="section-head">
+          <h2 class="card-title">Data Artikel</h2>
+          <div class="section-tools">
+            <div class="kpi-inline" id="summaryCounts">-</div>
+            <div class="toolbar-group">
+              <label class="page-size">Baris
+                <select id="pageSizeSelect">
+                  <option value="5" selected>5</option>
+                  <option value="10">10</option>
+                  <option value="20">20</option>
+                  <option value="50">50</option>
+                  <option value="100">100</option>
+                </select>
+              </label>
+              <button id="markAllVerifiedBtn" class="btn success">Tandai halaman ini: Sudah diverifikasi</button>
+              <button id="copyPageBtn" class="btn">Salin halaman</button>
+              <button id="copyAllBtn" class="btn">Salin semua hasil</button>
+            </div>
           </div>
         </div>
+        <div id="activeIssueFilters" class="chips issue-filters" style="margin-bottom:8px; display:none;"></div>
         <div class="table-wrap">
           <table id="dataTable">
             <thead>
@@ -121,18 +143,17 @@
             <tbody id="tableBody"></tbody>
           </table>
         </div>
-  <div id="pagination" class="pagination"></div>
+        <div id="pagination" class="pagination"></div>
       </section>
 
       <!-- Summary (hidden until CSV loaded) -->
       <section class="card hidden" id="summarySection">
         <h2 class="card-title">Ringkasan Filter</h2>
-        <div id="summaryCounts" class="hint">-</div>
         <div id="filterSummary" class="chips"></div>
       </section>
 
       <!-- Statistics (hidden until CSV loaded) -->
-      <section class="card hidden" id="statsSection">
+  <section class="card hidden" id="statsSection">
         <h2 class="card-title">Statistik Verifikasi</h2>
         <div class="charts">
           <div class="chart-item">
@@ -183,12 +204,24 @@
             </div>
             <div class="buttons" style="margin-top:8px"><button id="copyIssuesStatsBtn" class="btn">Salin tabel</button></div>
           </div>
+          <div class="chart-item">
+            <h3 class="chart-title">Domain Link</h3>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr><th>Domain</th><th>Jumlah</th></tr>
+                </thead>
+                <tbody id="domainStatsBody"></tbody>
+              </table>
+            </div>
+            <div class="buttons" style="margin-top:8px"><button id="copyDomainStatsBtn" class="btn">Salin tabel</button></div>
+          </div>
         </div>
       </section>
     </main>
 
     <footer class="app-footer">
-      <span>Thx Github Copilot</span>
+      <span>Terima kasih — GitHub Copilot</span>
     </footer>
 
     <script src="app.js"></script>

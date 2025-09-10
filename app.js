@@ -35,6 +35,8 @@
   const paginationEl = el('pagination');
   const sourceInternalChk = el('sourceInternalChk');
   const sourceAllChk = el('sourceAllChk');
+  const hideVerifiedChk = el('hideVerifiedChk');
+  const issueFiltersEl = el('activeIssueFilters');
 
   let rawData = [];
   let filteredData = [];
@@ -44,6 +46,11 @@
   let pageSize = 5;
   let currentPage = 1;
   let currentSort = { column: null, direction: null }; // null, 'asc', 'desc'
+  let activeIssueFilters = [];
+  let activeDomainFilters = [];
+  const domainFiltersEl = document.createElement('div');
+  domainFiltersEl.id = 'activeDomainFilters';
+  domainFiltersEl.className = 'chips domain-filters';
 
   // CSV columns expected
   const COLS = {
@@ -275,17 +282,31 @@
       const isVerified = verificationData.has(rowId) && verificationData.get(rowId).verified;
       const issues = checkDataIssues(row);
       const hasIssues = issues.length > 0;
-      
+
+      // Issue filter: must match ALL selected issues (AND logic)
+      if (activeIssueFilters.length > 0) {
+        if (!activeIssueFilters.every(f => issues.includes(f))) return false;
+      }
+
+      // Quick toggle: hide already verified
+      if (hideVerifiedChk && hideVerifiedChk.checked && isVerified) return false;
+
       if (verificationStatus === 'verified' && !isVerified) return false;
       if (verificationStatus === 'unverified' && isVerified) return false;
       if (verificationStatus === 'issues' && !hasIssues) return false;
 
+      // Domain filter: must match ALL selected domains (AND logic)
+      if (activeDomainFilters.length > 0) {
+        const domain = extractDomain(row[COLS.link]);
+        if (!activeDomainFilters.includes(domain)) return false;
+      }
+
       return true;
     });
 
-  // Reset to first page after filtering
-  currentPage = 1;
-  updateAll();
+    // Reset to first page after filtering
+    currentPage = 1;
+    updateAll();
   }
 
   function updateAll() {
@@ -295,6 +316,8 @@
     }
     renderTable();
     renderCharts();
+    renderActiveIssueFilters();
+    renderActiveDomainFilters();
     renderSummary();
     updateSortIndicators();
     enableControls(true);
@@ -498,6 +521,18 @@
     return m;
   }
 
+  function extractDomain(url) {
+    try {
+      if (!url) return '';
+      let u = url.trim();
+      if (!/^https?:\/\//.test(u)) u = 'http://' + u;
+      const d = new URL(u).hostname.replace(/^www\./, '');
+      return d;
+    } catch {
+      return '';
+    }
+  }
+
   function renderCharts() {
     // Verification stats
     const verificationStats = new Map([
@@ -540,8 +575,35 @@
     const issuesBody = document.getElementById('issuesStatsBody');
     issuesBody.innerHTML = Array.from(issuesMap.entries())
       .sort((a,b) => b[1] - a[1])
-      .map(([k,v]) => `<tr><td>${escapeHtml(k)}</td><td>${v}</td></tr>`) 
+      .map(([k,v]) => `<tr><td class="issue-stat-cell" data-issue="${escapeHtml(k)}">${escapeHtml(k)}</td><td>${v}</td></tr>`) 
       .join('');
+
+    // Add click listeners for issue filter
+    issuesBody.querySelectorAll('.issue-stat-cell').forEach(cell => {
+      cell.style.cursor = 'pointer';
+      cell.title = 'Klik untuk filter berdasarkan masalah ini';
+      cell.onclick = () => {
+        const issue = cell.getAttribute('data-issue');
+        if (!activeIssueFilters.includes(issue)) {
+          activeIssueFilters.push(issue);
+        } else {
+          // Toggle off if already selected
+          activeIssueFilters = activeIssueFilters.filter(f => f !== issue);
+        }
+        renderActiveIssueFilters();
+        applyFilter();
+      };
+      // Highlight if active
+      if (activeIssueFilters.includes(cell.getAttribute('data-issue'))) {
+        cell.style.background = '#b91c1c';
+        cell.style.color = '#fff';
+        cell.style.fontWeight = 'bold';
+      } else {
+        cell.style.background = '';
+        cell.style.color = '';
+        cell.style.fontWeight = '';
+      }
+    });
 
     // Replace with stats tables
     const validMap = countBy(filteredData, (r) => normalizeName(r[COLS.valid]) || 'Tidak Diketahui');
@@ -557,6 +619,44 @@
       .sort((a,b) => b[1] - a[1])
       .map(([k,v]) => `<tr><td>${escapeHtml(k)}</td><td>${v}</td></tr>`) 
       .join('');
+
+    // Domain stats
+    const domainMap = new Map();
+    filteredData.forEach(row => {
+      const domain = extractDomain(row[COLS.link]);
+      if (domain) domainMap.set(domain, (domainMap.get(domain) || 0) + 1);
+    });
+    const domainBody = document.getElementById('domainStatsBody');
+    domainBody.innerHTML = Array.from(domainMap.entries())
+      .sort((a,b) => b[1] - a[1])
+      .map(([k,v]) => `<tr><td class="domain-stat-cell" data-domain="${escapeHtml(k)}">${escapeHtml(k)}</td><td>${v}</td></tr>`) 
+      .join('');
+    // Add click listeners for domain filter
+    domainBody.querySelectorAll('.domain-stat-cell').forEach(cell => {
+      cell.style.cursor = 'pointer';
+      cell.title = 'Klik untuk filter berdasarkan domain ini';
+      cell.onclick = () => {
+        const domain = cell.getAttribute('data-domain');
+        if (!activeDomainFilters.includes(domain)) {
+          activeDomainFilters.push(domain);
+        } else {
+          // Toggle off if already selected
+          activeDomainFilters = activeDomainFilters.filter(f => f !== domain);
+        }
+        renderActiveDomainFilters();
+        applyFilter();
+      };
+      // Highlight if active
+      if (activeDomainFilters.includes(cell.getAttribute('data-domain'))) {
+        cell.style.background = '#1d4ed8';
+        cell.style.color = '#fff';
+        cell.style.fontWeight = 'bold';
+      } else {
+        cell.style.background = '';
+        cell.style.color = '';
+        cell.style.fontWeight = '';
+      }
+    });
   }
 
   function exportCSV() {
@@ -849,6 +949,8 @@
   document.querySelectorAll('input[name="verificationStatus"]').forEach(radio => {
     radio.addEventListener('change', () => { if (autoApplyChk.checked) applyFilter(); });
   });
+  // Hide verified quick toggle
+  hideVerifiedChk?.addEventListener('change', () => { if (autoApplyChk.checked) applyFilter(); });
   pageSizeSelect?.addEventListener('change', () => {
     const val = parseInt(pageSizeSelect.value, 10);
     pageSize = Number.isNaN(val) ? 10 : val;
@@ -863,6 +965,7 @@
   const copyTipeStatsBtn = document.getElementById('copyTipeStatsBtn');
   const copyVerificationStatsBtn = document.getElementById('copyVerificationStatsBtn');
   const copyIssuesStatsBtn = document.getElementById('copyIssuesStatsBtn');
+  const copyDomainStatsBtn = document.getElementById('copyDomainStatsBtn');
 
   copyPageBtn?.addEventListener('click', () => {
     if (!filteredData.length) return;
@@ -909,7 +1012,78 @@
     const lines = ['Jenis Masalah\tJumlah', ...Array.from(issuesMap.entries()).sort((a,b)=>b[1]-a[1]).map(([k,v]) => `${k}\t${v}`)];
     copyTextToClipboard(lines.join('\n'));
   });
+  // Copy domain stats
+  if (copyDomainStatsBtn) {
+    copyDomainStatsBtn.addEventListener('click', () => {
+      const domainMap = new Map();
+      filteredData.forEach(row => {
+        const domain = extractDomain(row[COLS.link]);
+        if (domain) domainMap.set(domain, (domainMap.get(domain) || 0) + 1);
+      });
+      const lines = ['Domain\tJumlah', ...Array.from(domainMap.entries()).sort((a,b)=>b[1]-a[1]).map(([k,v]) => `${k}\t${v}`)];
+      copyTextToClipboard(lines.join('\n'));
+    });
+  }
+
+  function renderActiveIssueFilters() {
+    if (!issueFiltersEl) return;
+    if (activeIssueFilters.length === 0) {
+      issueFiltersEl.style.display = 'none';
+      issueFiltersEl.innerHTML = '';
+      return;
+    }
+    issueFiltersEl.style.display = '';
+    issueFiltersEl.innerHTML = activeIssueFilters.map(issue =>
+      `<span class="chip active">${escapeHtml(issue)} <button class="remove" title="Hapus filter" data-issue="${escapeHtml(issue)}">×</button></span>`
+    ).join('') +
+      `<button class="clear-btn" id="clearAllIssueFilters">Hapus semua filter</button>`;
+
+    // Remove individual filter
+    issueFiltersEl.querySelectorAll('.remove').forEach(btn => {
+      btn.onclick = (e) => {
+        const issue = btn.getAttribute('data-issue');
+        activeIssueFilters = activeIssueFilters.filter(f => f !== issue);
+        renderActiveIssueFilters();
+        applyFilter();
+      };
+    });
+    // Clear all
+    const clearBtn = issueFiltersEl.querySelector('#clearAllIssueFilters');
+    if (clearBtn) {
+      clearBtn.onclick = () => {
+        activeIssueFilters = [];
+        renderActiveIssueFilters();
+        applyFilter();
+      };
+    }
+  }
+
+  function renderActiveDomainFilters() {
+    if (!domainFiltersEl) return;
+    if (activeDomainFilters.length === 0) {
+      domainFiltersEl.style.display = 'none';
+      domainFiltersEl.innerHTML = '';
+      return;
+    }
+    domainFiltersEl.style.display = '';
+    domainFiltersEl.innerHTML = activeDomainFilters.map(domain =>
+      `<span class="chip active">${escapeHtml(domain)} <button class="remove" title="Hapus filter" data-domain="${escapeHtml(domain)}">×</button></span>`
+    ).join(''); // No clear-all button
+
+    // Remove individual filter
+    domainFiltersEl.querySelectorAll('.remove').forEach(btn => {
+      btn.onclick = (e) => {
+        const domain = btn.getAttribute('data-domain');
+        activeDomainFilters = activeDomainFilters.filter(f => f !== domain);
+        renderActiveDomainFilters();
+        applyFilter();
+      };
+    });
+  }
 
   // Initialize empty state
   enableControls(false);
+
+  
+  
 })();
