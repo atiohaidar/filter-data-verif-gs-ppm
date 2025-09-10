@@ -199,6 +199,17 @@
   function showFileMeta(file) {
     fileMeta.hidden = false;
     fileMeta.textContent = `${file.name} • ${(file.size / 1024).toFixed(1)} KB`;
+    // Tampilkan nama file di area khusus dan update judul tab
+    const fileNameDiv = document.getElementById('currentFileName');
+    if (fileNameDiv) {
+      fileNameDiv.style.display = '';
+      fileNameDiv.textContent = `Nama file: ${file.name}`;
+    }
+    // Ubah judul tab sesuai nama file (tanpa ekstensi)
+    if (file && file.name) {
+      const baseName = file.name.replace(/\.[^.]+$/, '');
+      document.title = baseName;
+    }
   }
 
   function enableControls(enabled) {
@@ -1157,10 +1168,7 @@
       journalFiltersEl.innerHTML = '';
       return;
     }
-    journalFiltersEl.style.display = '';
-    journalFiltersEl.innerHTML = activeJournalFilters.map(journal =>
-      `<span class="chip active">${escapeHtml(journal)} <button class="remove" title="Hapus filter" data-journal="${escapeHtml(journal)}">×</button></span>`
-    ).join('');
+   
 
     // Remove individual filter
     journalFiltersEl.querySelectorAll('.remove').forEach(btn => {
