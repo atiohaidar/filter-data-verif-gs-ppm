@@ -143,7 +143,7 @@
     // 12. Journal name inconsistency (basic check for obvious variations)
     const venue = (row[COLS.venue] || '').toString();
     if (venue.includes('IEEE') && !venue.includes('IEEE ')) {
-      issues.push('Nama jurnal tidak seragam');
+      // issues.push('Nama jurnal tidak seragam');
     }
     
     // 13. Validitas Valid tapi Tipe Publikasi None
