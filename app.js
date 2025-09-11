@@ -49,6 +49,8 @@
   let activeIssueFilters = [];
   let activeDomainFilters = [];
   let activeJournalFilters = [];
+  let domainStatsSort = { column: 'count', direction: 'desc' }; // Default sort by count descending
+  let journalStatsSort = { column: 'count', direction: 'desc' }; // Default sort by count descending
   const domainFiltersEl = document.createElement('div');
   domainFiltersEl.id = 'activeDomainFilters';
   domainFiltersEl.className = 'chips domain-filters';
@@ -143,6 +145,34 @@
       issues.push('Nama jurnal tidak seragam');
     }
     
+    // 13. Validitas Valid tapi Tipe Publikasi None
+    const validitas = (row[COLS.valid] || '').toString().toLowerCase();
+    const tipePublikasi = (row[COLS.tipe] || '').toString().toLowerCase();
+    if (validitas === 'valid' && (tipePublikasi === 'none' || tipePublikasi === '' || tipePublikasi === '-')) {
+      issues.push('Valid tapi Tipe Publikasi None');
+    }
+    
+    // 14. Inkonsistensi tipe publikasi untuk jurnal yang sama
+    const venueNormalized = venue.trim();
+    if (venueNormalized && venueNormalized.toLowerCase() !== 'none' && venueNormalized !== '') {
+      // Cek apakah ada jurnal yang sama dengan tipe publikasi berbeda (abaikan kapitalisasi)
+      const venueNormalizedLower = venueNormalized.toLowerCase();
+      const sameVenueRows = rawData.filter(r => {
+        const otherVenue = (r[COLS.venue] || '').toString().trim();
+        return otherVenue.toLowerCase() === venueNormalizedLower && r !== row;
+      });
+      
+      if (sameVenueRows.length > 0) {
+        const currentTipe = (row[COLS.tipe] || '').toString().trim();
+        const otherTipes = sameVenueRows.map(r => (r[COLS.tipe] || '').toString().trim());
+        const hasInconsistentTipe = otherTipes.some(t => t !== currentTipe && t !== '' && currentTipe !== '');
+        
+        if (hasInconsistentTipe) {
+          issues.push('Inkonsistensi tipe publikasi jurnal');
+        }
+      }
+    }
+    
     return issues;
   }
 
@@ -176,10 +206,20 @@
   function updateSortIndicators() {
     document.querySelectorAll('th.sortable').forEach(th => {
       th.classList.remove('sort-asc', 'sort-desc');
-      if (currentSort.column && th.getAttribute('data-column') === currentSort.column) {
+      const statsTable = th.getAttribute('data-stats-table');
+      if (statsTable === 'domain' && domainStatsSort.column === th.getAttribute('data-column')) {
+        th.classList.add(`sort-${domainStatsSort.direction}`);
+      } else if (statsTable === 'journal' && journalStatsSort.column === th.getAttribute('data-column')) {
+        th.classList.add(`sort-${journalStatsSort.direction}`);
+      } else if (!statsTable && currentSort.column && th.getAttribute('data-column') === currentSort.column) {
         th.classList.add(`sort-${currentSort.direction}`);
       }
     });
+  }
+
+  // Update sort indicators for stats tables
+  function updateStatsSortIndicators() {
+    updateSortIndicators();
   }
 
   // Helpers
@@ -655,9 +695,21 @@
       const domain = extractDomain(row[COLS.link]);
       if (domain) domainMap.set(domain, (domainMap.get(domain) || 0) + 1);
     });
+    const domainEntries = Array.from(domainMap.entries());
+    // Apply sorting
+    if (domainStatsSort.column === 'name') {
+      domainEntries.sort((a,b) => {
+        const comparison = a[0].localeCompare(b[0], 'id');
+        return domainStatsSort.direction === 'asc' ? comparison : -comparison;
+      });
+    } else { // count
+      domainEntries.sort((a,b) => {
+        const comparison = a[1] - b[1];
+        return domainStatsSort.direction === 'asc' ? comparison : -comparison;
+      });
+    }
     const domainBody = document.getElementById('domainStatsBody');
-    domainBody.innerHTML = Array.from(domainMap.entries())
-      .sort((a,b) => b[1] - a[1])
+    domainBody.innerHTML = domainEntries
       .map(([k,v]) => `<tr><td class="domain-stat-cell" data-domain="${escapeHtml(k)}">${escapeHtml(k)}</td><td>${v}</td></tr>`) 
       .join('');
     // Add click listeners for domain filter
@@ -693,9 +745,21 @@
       const journal = (row[COLS.venue] || '').trim();
       if (journal) journalMap.set(journal, (journalMap.get(journal) || 0) + 1);
     });
+    const journalEntries = Array.from(journalMap.entries());
+    // Apply sorting
+    if (journalStatsSort.column === 'name') {
+      journalEntries.sort((a,b) => {
+        const comparison = a[0].localeCompare(b[0], 'id');
+        return journalStatsSort.direction === 'asc' ? comparison : -comparison;
+      });
+    } else { // count
+      journalEntries.sort((a,b) => {
+        const comparison = a[1] - b[1];
+        return journalStatsSort.direction === 'asc' ? comparison : -comparison;
+      });
+    }
     const journalBody = document.getElementById('journalStatsBody');
-    journalBody.innerHTML = Array.from(journalMap.entries())
-      .sort((a,b) => b[1] - a[1])
+    journalBody.innerHTML = journalEntries
       .map(([k,v]) => `<tr><td class="journal-stat-cell" data-journal="${escapeHtml(k)}">${escapeHtml(k)}</td><td>${v}</td></tr>`) 
       .join('');
     // Add click listeners for journal filter
@@ -724,6 +788,9 @@
         cell.style.fontWeight = '';
       }
     });
+    
+    // Re-initialize sortable headers for stats tables
+    initializeSortableHeaders();
   }
 
   function exportCSV() {
@@ -964,41 +1031,80 @@
 
   // Add sorting event listeners
   function initializeSortableHeaders() {
+    // Remove existing listeners first to avoid duplicates
+    document.querySelectorAll('th.sortable').forEach(th => {
+      // Clone the element to remove all event listeners
+      const newTh = th.cloneNode(true);
+      th.parentNode.replaceChild(newTh, th);
+    });
+    
+    // Add new listeners
     document.querySelectorAll('th.sortable').forEach(th => {
       th.addEventListener('click', () => {
         const column = th.getAttribute('data-column');
+        const statsTable = th.getAttribute('data-stats-table');
         
-        // Determine new sort direction
-        let newDirection = 'asc';
-        if (currentSort.column === column) {
-          if (currentSort.direction === 'asc') {
-            newDirection = 'desc';
-          } else if (currentSort.direction === 'desc') {
-            newDirection = null; // Remove sort
-          } else {
-            newDirection = 'asc';
+        if (statsTable === 'domain') {
+          // Handle domain stats sorting
+          let newDirection = 'asc';
+          if (domainStatsSort.column === column) {
+            if (domainStatsSort.direction === 'asc') {
+              newDirection = 'desc';
+            } else if (domainStatsSort.direction === 'desc') {
+              newDirection = 'asc'; // Cycle back to asc for stats
+            }
           }
-        }
-        
-        // Update current sort
-        if (newDirection === null) {
-          currentSort.column = null;
-          currentSort.direction = null;
-          // Reset to original order
-          filteredData = [...filteredData].sort((a, b) => {
-            const idA = parseInt(a[COLS.id]) || 0;
-            const idB = parseInt(b[COLS.id]) || 0;
-            return idA - idB;
-          });
+          domainStatsSort.column = column;
+          domainStatsSort.direction = newDirection;
+          renderCharts();
+          updateSortIndicators();
+        } else if (statsTable === 'journal') {
+          // Handle journal stats sorting
+          let newDirection = 'asc';
+          if (journalStatsSort.column === column) {
+            if (journalStatsSort.direction === 'asc') {
+              newDirection = 'desc';
+            } else if (journalStatsSort.direction === 'desc') {
+              newDirection = 'asc'; // Cycle back to asc for stats
+            }
+          }
+          journalStatsSort.column = column;
+          journalStatsSort.direction = newDirection;
+          renderCharts();
+          updateSortIndicators();
         } else {
-          currentSort.column = column;
-          currentSort.direction = newDirection;
-          sortData(column, newDirection);
+          // Handle main table sorting
+          let newDirection = 'asc';
+          if (currentSort.column === column) {
+            if (currentSort.direction === 'asc') {
+              newDirection = 'desc';
+            } else if (currentSort.direction === 'desc') {
+              newDirection = null; // Remove sort
+            } else {
+              newDirection = 'asc';
+            }
+          }
+          
+          // Update current sort
+          if (newDirection === null) {
+            currentSort.column = null;
+            currentSort.direction = null;
+            // Reset to original order
+            filteredData = [...filteredData].sort((a, b) => {
+              const idA = parseInt(a[COLS.id]) || 0;
+              const idB = parseInt(b[COLS.id]) || 0;
+              return idA - idB;
+            });
+          } else {
+            currentSort.column = column;
+            currentSort.direction = newDirection;
+            sortData(column, newDirection);
+          }
+          
+          currentPage = 1;
+          renderTable();
+          updateSortIndicators();
         }
-        
-        currentPage = 1;
-        renderTable();
-        updateSortIndicators();
       });
     });
   }
