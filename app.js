@@ -129,8 +129,9 @@
       issues.push('IOS Book Chapter');
     }
     
-    // 10. AIP (proceedings indicator)
-    if (link.includes('aip.org') || (link.includes('aip') && link.includes('proceeding'))) {
+    // 10. AIP (proceedings indicator) - check journal name instead of link
+    const journalName = (row[COLS.venue] || '').toString().toLowerCase();
+    if (journalName.includes('aip') && journalName.includes('proceeding')) {
       issues.push('AIP Proceedings');
     }
     
@@ -739,28 +740,63 @@
       }
     });
 
-    // Journal stats
+    // Journal stats dengan tipe publikasi
     const journalMap = new Map();
     filteredData.forEach(row => {
       const journal = (row[COLS.venue] || '').trim();
-      if (journal) journalMap.set(journal, (journalMap.get(journal) || 0) + 1);
+      const tipe = (row[COLS.tipe] || '').trim();
+      if (journal) {
+        const key = `${journal}|||${tipe}`; // Separator unik
+        journalMap.set(key, (journalMap.get(key) || 0) + 1);
+      }
     });
-    const journalEntries = Array.from(journalMap.entries());
+    
+    // Group by journal name and detect inconsistencies
+    const journalGrouped = new Map();
+    journalMap.forEach((count, key) => {
+      const [journal, tipe] = key.split('|||');
+      if (!journalGrouped.has(journal)) {
+        journalGrouped.set(journal, { types: new Set(), totalCount: 0, entries: [] });
+      }
+      const group = journalGrouped.get(journal);
+      group.types.add(tipe);
+      group.totalCount += count;
+      group.entries.push({ tipe, count });
+    });
+    
+    // Create entries for each journal-type combination
+    const journalEntries = [];
+    journalGrouped.forEach((group, journal) => {
+      const hasInconsistency = group.types.size > 1;
+      group.entries.forEach(entry => {
+        journalEntries.push([journal, entry.tipe, entry.count, hasInconsistency]);
+      });
+    });
+    
     // Apply sorting
     if (journalStatsSort.column === 'name') {
       journalEntries.sort((a,b) => {
         const comparison = a[0].localeCompare(b[0], 'id');
         return journalStatsSort.direction === 'asc' ? comparison : -comparison;
       });
+    } else if (journalStatsSort.column === 'type') {
+      journalEntries.sort((a,b) => {
+        const comparison = a[1].localeCompare(b[1], 'id');
+        return journalStatsSort.direction === 'asc' ? comparison : -comparison;
+      });
     } else { // count
       journalEntries.sort((a,b) => {
-        const comparison = a[1] - b[1];
+        const comparison = a[2] - b[2];
         return journalStatsSort.direction === 'asc' ? comparison : -comparison;
       });
     }
+    
     const journalBody = document.getElementById('journalStatsBody');
     journalBody.innerHTML = journalEntries
-      .map(([k,v]) => `<tr><td class="journal-stat-cell" data-journal="${escapeHtml(k)}">${escapeHtml(k)}</td><td>${v}</td></tr>`) 
+      .map(([journal, tipe, count, hasInconsistency]) => {
+        const rowClass = hasInconsistency ? 'style="background-color: #fee2e2; color: #dc2626;"' : '';
+        return `<tr ${rowClass}><td class="journal-stat-cell" data-journal="${escapeHtml(journal)}">${escapeHtml(journal)}</td><td>${escapeHtml(tipe || 'Tidak Diketahui')}</td><td>${count}</td></tr>`;
+      })
       .join('');
     // Add click listeners for journal filter
     journalBody.querySelectorAll('.journal-stat-cell').forEach(cell => {
@@ -1204,9 +1240,17 @@
       const journalMap = new Map();
       filteredData.forEach(row => {
         const journal = (row[COLS.venue] || '').trim();
-        if (journal) journalMap.set(journal, (journalMap.get(journal) || 0) + 1);
+        const tipe = (row[COLS.tipe] || '').trim();
+        if (journal) {
+          const key = `${journal}|||${tipe}`;
+          journalMap.set(key, (journalMap.get(key) || 0) + 1);
+        }
       });
-      const lines = ['Nama Jurnal/Conference\tJumlah', ...Array.from(journalMap.entries()).sort((a,b)=>b[1]-a[1]).map(([k,v]) => `${k}\t${v}`)];
+      const lines = ['Nama Jurnal/Conference\tTipe Publikasi\tJumlah'];
+      journalMap.forEach((count, key) => {
+        const [journal, tipe] = key.split('|||');
+        lines.push(`${journal}\t${tipe || 'Tidak Diketahui'}\t${count}`);
+      });
       copyTextToClipboard(lines.join('\n'));
     });
   }
